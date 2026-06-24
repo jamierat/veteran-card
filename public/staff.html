@@ -11,6 +11,9 @@
     .top { background: #2d3521; border-bottom: 2px solid #d6c08c; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; }
     .top h1 { font-size: 16px; font-weight: 800; letter-spacing: .5px; }
     .top .who { font-size: 12px; color: #d6c08c; }
+    .topright { display: flex; align-items: center; gap: 12px; }
+    .signout { font-size: 12px; color: #9aa085; cursor: pointer; text-decoration: underline; }
+    .signout.hidden { display: none; }
     .wrap { max-width: 480px; margin: 0 auto; padding: 18px; }
 
     /* Gate */
@@ -62,7 +65,7 @@
 
 <div class="top">
   <h1>Bullfrog Salutes</h1>
-  <span class="who" id="who"></span>
+  <span class="topright"><span class="who" id="who"></span><a id="signout" class="signout hidden" onclick="signOut()">Sign out</a></span>
 </div>
 
 <div class="wrap">
@@ -124,14 +127,32 @@
   // Pre-load passId from QR deep-link (?passId=...)
   const urlPass = new URLSearchParams(location.search).get('passId');
 
+  function enterApp() {
+    document.getElementById('gate').classList.add('hidden');
+    document.getElementById('scan').classList.remove('hidden');
+    document.getElementById('signout').classList.remove('hidden');
+    if (STAFF_NAME) document.getElementById('who').textContent = STAFF_NAME;
+    if (urlPass) lookupById(urlPass);
+  }
+
   function signIn() {
     STAFF_CODE = document.getElementById('staffCode').value.trim();
     STAFF_NAME = document.getElementById('staffName').value.trim();
     if (!STAFF_CODE) return;
-    document.getElementById('gate').classList.add('hidden');
-    document.getElementById('scan').classList.remove('hidden');
-    if (STAFF_NAME) document.getElementById('who').textContent = STAFF_NAME;
-    if (urlPass) lookupById(urlPass);
+    // Remember on this device so staff don't re-enter every time
+    try {
+      localStorage.setItem('bcb_staff_code', STAFF_CODE);
+      localStorage.setItem('bcb_staff_name', STAFF_NAME);
+    } catch (e) {}
+    enterApp();
+  }
+
+  function signOut() {
+    try {
+      localStorage.removeItem('bcb_staff_code');
+      localStorage.removeItem('bcb_staff_name');
+    } catch (e) {}
+    location.href = location.pathname;
   }
 
   function showScan() {
@@ -265,6 +286,18 @@
 
   document.getElementById('staffCode').addEventListener('keydown', e => { if (e.key === 'Enter') signIn(); });
   document.getElementById('codeInput').addEventListener('keydown', e => { if (e.key === 'Enter') lookupByCode(); });
+
+  // Already signed in on this device? Skip the gate.
+  (function () {
+    try {
+      const savedCode = localStorage.getItem('bcb_staff_code');
+      if (savedCode) {
+        STAFF_CODE = savedCode;
+        STAFF_NAME = localStorage.getItem('bcb_staff_name') || '';
+        enterApp();
+      }
+    } catch (e) {}
+  })();
 </script>
 </body>
 </html>
