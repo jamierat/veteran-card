@@ -44,6 +44,19 @@ db.exec(`
   CREATE UNIQUE INDEX IF NOT EXISTS idx_one_pint_per_month
     ON pint_redemptions (pass_id, redeemed_month);
 
+  -- One row per birthday / Veterans Day free beer. (pass_id, occasion_date)
+  -- is unique so a member can only claim a given occasion once.
+  CREATE TABLE IF NOT EXISTS birthday_redemptions (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    pass_id        TEXT NOT NULL,
+    occasion_date  TEXT NOT NULL,                -- 'YYYY-MM-DD'
+    occasion_label TEXT,                         -- 'Army Birthday' / 'Veterans Day'
+    redeemed_at    TEXT NOT NULL,
+    bartender      TEXT
+  );
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_one_birthday_beer
+    ON birthday_redemptions (pass_id, occasion_date);
+
   -- Apple Wallet device registrations (for live push updates)
   CREATE TABLE IF NOT EXISTS device_registrations (
     id                INTEGER PRIMARY KEY AUTOINCREMENT,

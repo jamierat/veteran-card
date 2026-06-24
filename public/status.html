@@ -48,6 +48,7 @@
   <div class="perks">
     <div class="perk"><span class="k">Military Discount</span><span class="v" id="discount">-</span></div>
     <div class="perk"><span class="k">Free Pint This Month</span><span class="v" id="pint">-</span></div>
+    <div class="perk"><span class="k">Birthday Beer</span><span class="v" id="bday">-</span></div>
   </div>
 
   <div class="note" id="note"></div>
@@ -69,6 +70,11 @@
     if (!m.verified) { pint.textContent = 'Locked'; }
     else if (m.pintAvailable) { pint.textContent = 'Available'; pint.classList.add('ok'); }
     else { pint.textContent = 'Used, back ' + m.nextPint; pint.classList.add('used'); }
+    const bday = document.getElementById('bday');
+    if (!m.verified) { bday.textContent = 'Locked'; }
+    else if (m.birthdayAvailable) { bday.textContent = 'Available today!'; bday.classList.add('ok'); }
+    else if (m.birthdayRedeemed) { bday.textContent = 'Claimed today'; bday.classList.add('used'); }
+    else { bday.textContent = 'Branch birthday + Veterans Day'; }
     document.getElementById('note').textContent = m.verified
       ? 'Show this card (or your ID code) at the bar. Your free pint resets on the 1st of each month.'
       : 'Bring a valid military ID, VA card, or DD-214 to the bar to switch on your discount and free monthly pint.';

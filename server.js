@@ -7,7 +7,7 @@ const QRCode = require('qrcode');
 const cors = require('cors');
 const db = require('./database');
 const { generatePass } = require('./pass-generator');
-const { currentMonth, isPintAvailable, nextPintLabel } = require('./lib');
+const { currentMonth, isPintAvailable, nextPintLabel, birthdayOccasion } = require('./lib');
 
 const app = express();
 app.use(express.json());
@@ -71,6 +71,14 @@ async function pushPassUpdate(passId) {
 
 function memberPublic(m) {
   const available = isPintAvailable(m);
+  // Birthday / Veterans Day free beer (only on that calendar day)
+  const occ = birthdayOccasion(m);
+  let birthdayRedeemed = false;
+  if (occ) {
+    birthdayRedeemed = !!db.prepare(
+      'SELECT 1 FROM birthday_redemptions WHERE pass_id = ? AND occasion_date = ?'
+    ).get(m.pass_id, occ.date);
+  }
   return {
     passId:       m.pass_id,
     shortCode:    m.short_code,
@@ -82,6 +90,9 @@ function memberPublic(m) {
     pintAvailable: available,
     pintUsedThisMonth: m.verified ? !available : false,
     nextPint:     available ? null : nextPintLabel(),
+    birthdayToday:      occ ? occ.label : null,
+    birthdayAvailable:  !!occ && !!m.verified && !birthdayRedeemed,
+    birthdayRedeemed:   !!occ && birthdayRedeemed,
     totalPints:   m.total_pints || 0,
     totalVisits:  m.total_visits || 0,
     statusUrl:    `${BASE_URL}/status/${m.pass_id}`,
@@ -258,6 +269,48 @@ app.post('/api/redeem-pint', (req, res) => {
   res.json({
     success: true,
     message: `Free pint redeemed for ${member.name}! Next free pint unlocks ${nextPintLabel()}.`,
+    member: memberPublic(updated),
+  });
+});
+
+// ─────────────────────────────────────────────
+// STAFF: Redeem the branch-birthday / Veterans Day free beer (once per occasion)
+// ─────────────────────────────────────────────
+app.post('/api/redeem-birthday', (req, res) => {
+  const { passId, shortCode, code, staffCode, staffName } = req.body;
+  if (staffCode !== STAFF_CODE) return res.status(401).json({ error: 'Wrong staff code. Try again.' });
+
+  const lookupCode = shortCode || code;
+  let member;
+  if (passId) member = db.prepare('SELECT * FROM members WHERE pass_id = ?').get(passId);
+  else if (lookupCode) member = db.prepare('SELECT * FROM members WHERE short_code = ?').get(lookupCode.toUpperCase().trim());
+  if (!member) return res.status(404).json({ error: 'Member not found.' });
+
+  if (!member.verified) {
+    return res.status(400).json({ error: `${member.name} is not verified yet. Check proof of service and tap Verify first.` });
+  }
+
+  const occ = birthdayOccasion(member);
+  if (!occ) {
+    return res.status(400).json({ error: `No birthday beer today for ${member.name}. It unlocks on their branch birthday and on Veterans Day.` });
+  }
+
+  const nowIso = new Date().toISOString();
+  try {
+    db.prepare(`INSERT INTO birthday_redemptions (pass_id, occasion_date, occasion_label, redeemed_at, bartender) VALUES (?, ?, ?, ?, ?)`)
+      .run(member.pass_id, occ.date, occ.label, nowIso, staffName || 'staff');
+  } catch (e) {
+    return res.status(409).json({ error: `${member.name} already claimed their ${occ.label} beer today.` });
+  }
+
+  db.prepare(`UPDATE members SET total_visits = COALESCE(total_visits,0) + 1, pass_updated_at = ? WHERE pass_id = ?`)
+    .run(nowIso, member.pass_id);
+
+  pushPassUpdate(member.pass_id).catch(e => console.warn('Push error:', e.message));
+  const updated = db.prepare('SELECT * FROM members WHERE pass_id = ?').get(member.pass_id);
+  res.json({
+    success: true,
+    message: `Happy ${occ.label}! Free beer redeemed for ${member.name}.`,
     member: memberPublic(updated),
   });
 });

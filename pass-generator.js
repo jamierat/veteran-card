@@ -13,7 +13,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { isPintAvailable, nextPintLabel } = require('./lib');
+const { isPintAvailable, nextPintLabel, branchBirthdayLabel } = require('./lib');
 
 const _certCache = {};
 function resolveCert(envVar, filePath, label) {
@@ -171,6 +171,14 @@ function buildPassJson(member, baseUrl) {
           key: 'verify',
           label: 'GETTING VERIFIED',
           value: 'First visit: show a valid proof of service (military ID, VA ID card, or DD-214) to your bartender once. They verify you in the system and you are set for good.',
+        },
+        {
+          key: 'birthday',
+          label: 'FREE BIRTHDAY BEER',
+          value: (branchBirthdayLabel(member.branch)
+            ? `A free beer on the ${member.branch} birthday (${branchBirthdayLabel(member.branch)})`
+            : 'A free beer on your branch birthday')
+            + ' and on Veterans Day (Nov 11). Show your card that day.',
         },
         {
           key: 'terms',

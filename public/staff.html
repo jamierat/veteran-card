@@ -56,6 +56,9 @@
     .banner-green { background: #2e7d32; color: #fff; }
     .banner-red { background: #5a2d2d; color: #ffd9d2; border: 1px solid #8a4a4a; }
     .banner-gold { background: rgba(214,192,140,.15); color: #f0e6c8; border: 1px solid #d6c08c; }
+    .banner-bday { background: #6d419a; color: #fff; border: 1px solid #9a6fd0; }
+    .banner-bday-used { background: rgba(122,77,189,.15); color: #cdb6e8; border: 1px solid #6d419a; }
+    .btn-birthday { background: #7c4dbd; color: #fff; }
     #toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #2d3521; border: 1px solid #d6c08c; color: #fff; padding: 14px 20px; border-radius: 12px; font-size: 15px; max-width: 90%; text-align: center; display: none; z-index: 50; }
     .hidden { display: none !important; }
     .err { color: #ff8a7a; font-size: 14px; text-align: center; margin: 8px 0; }
@@ -114,6 +117,7 @@
 
     <button class="btn btn-gold hidden" id="verify-btn" onclick="verify()">✓ Verify Veteran (checked proof of service)</button>
     <button class="btn btn-green hidden" id="pint-btn" onclick="redeemPint()">Redeem Free Pint</button>
+    <button class="btn btn-birthday hidden" id="birthday-btn" onclick="redeemBirthday()">Redeem Birthday Beer</button>
     <button class="btn btn-ghost" onclick="reset()">← Next Customer</button>
   </div>
 
@@ -234,17 +238,41 @@
     const banner = document.getElementById('banner-slot');
     const verifyBtn = document.getElementById('verify-btn');
     const pintBtn = document.getElementById('pint-btn');
-    verifyBtn.classList.add('hidden'); pintBtn.classList.add('hidden');
+    const bdayBtn = document.getElementById('birthday-btn');
+    verifyBtn.classList.add('hidden'); pintBtn.classList.add('hidden'); bdayBtn.classList.add('hidden');
 
+    let html = '';
     if (!m.verified) {
-      banner.innerHTML = '<div class="banner banner-gold">Check proof of service (military ID, VA card, or DD-214), then verify.</div>';
+      html = '<div class="banner banner-gold">Check proof of service (military ID, VA card, or DD-214), then verify.</div>';
       verifyBtn.classList.remove('hidden');
     } else if (m.pintAvailable) {
-      banner.innerHTML = '<div class="banner banner-green">✓ Apply ' + m.discount + ' discount. Free pint available this month.</div>';
+      html = '<div class="banner banner-green">✓ Apply ' + m.discount + ' discount. Free pint available this month.</div>';
       pintBtn.classList.remove('hidden');
     } else {
-      banner.innerHTML = '<div class="banner banner-red">✓ Apply ' + m.discount + ' discount. Free pint already used. Back ' + m.nextPint + '.</div>';
+      html = '<div class="banner banner-red">✓ Apply ' + m.discount + ' discount. Free pint already used. Back ' + m.nextPint + '.</div>';
     }
+
+    // Birthday / Veterans Day free beer (only shows on that day)
+    if (m.verified && m.birthdayAvailable) {
+      html += '<div class="banner banner-bday">★ ' + m.birthdayToday + ' today. Free beer on the house!</div>';
+      bdayBtn.textContent = 'Redeem ' + m.birthdayToday + ' Beer';
+      bdayBtn.classList.remove('hidden');
+    } else if (m.verified && m.birthdayRedeemed) {
+      html += '<div class="banner banner-bday-used">' + m.birthdayToday + ' beer already claimed today.</div>';
+    }
+
+    banner.innerHTML = html;
+  }
+
+  async function redeemBirthday() {
+    const btn = document.getElementById('birthday-btn'); btn.disabled = true;
+    const r = await fetch('/api/redeem-birthday', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ passId: current.passId, staffCode: STAFF_CODE, staffName: STAFF_NAME }),
+    });
+    const data = await r.json(); btn.disabled = false;
+    if (data.error) { showToast(data.error); if (data.member) { current = data.member; renderMember(); } return; }
+    current = data.member; renderMember(); showToast(data.message);
   }
 
   async function verify() {

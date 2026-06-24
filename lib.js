@@ -43,4 +43,50 @@ function currentMonthName(date = new Date()) {
   return new Intl.DateTimeFormat('en-US', { timeZone: TZ, month: 'long' }).format(date);
 }
 
-module.exports = { TZ, currentMonth, isPintAvailable, nextPintLabel, currentMonthName };
+// ── Branch birthdays (free beer that day) ──────────────────────────────────
+// Keyed by 'MM-DD'. Aliases cover the exact strings the signup form can store.
+const BRANCH_BIRTHDAYS = {
+  'Army': '10-14',
+  'Navy': '10-13',
+  'Marine Corps': '11-10',
+  'Marines': '11-10',
+  'Air Force': '09-18',
+  'Coast Guard': '08-04',
+  'Space Force': '12-20',
+};
+const VETERANS_DAY = '11-11'; // everyone, regardless of branch
+
+// 'MM-DD' / 'YYYY-MM-DD' for "now" in the brewery's timezone
+function todayMMDD(date = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: TZ, month: '2-digit', day: '2-digit' }).format(date);
+}
+function todayYMD(date = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
+}
+
+// Is today a free-beer occasion for this member? Returns { date, label, kind } or null.
+// kind: 'branch' (their branch's birthday) or 'veterans' (Nov 11, everyone).
+function birthdayOccasion(member, date = new Date()) {
+  const mmdd = todayMMDD(date);
+  const branchDay = member && member.branch ? BRANCH_BIRTHDAYS[member.branch] : null;
+  if (branchDay && branchDay === mmdd) {
+    return { date: todayYMD(date), label: `${member.branch} Birthday`, kind: 'branch' };
+  }
+  if (mmdd === VETERANS_DAY) {
+    return { date: todayYMD(date), label: 'Veterans Day', kind: 'veterans' };
+  }
+  return null;
+}
+
+// Human label for a member's branch birthday, e.g. "Oct 14" (for the pass back).
+function branchBirthdayLabel(branch) {
+  const d = BRANCH_BIRTHDAYS[branch];
+  if (!d) return null;
+  const [m, day] = d.split('-').map(Number);
+  return new Date(Date.UTC(2000, m - 1, day)).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+module.exports = {
+  TZ, currentMonth, isPintAvailable, nextPintLabel, currentMonthName,
+  BRANCH_BIRTHDAYS, VETERANS_DAY, todayMMDD, todayYMD, birthdayOccasion, branchBirthdayLabel,
+};
