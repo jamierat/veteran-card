@@ -1,0 +1,23 @@
+{
+  "name": "bullfrog-salutes",
+  "version": "1.0.0",
+  "description": "Bullfrog Creek Brewing - Bullfrog Salutes Veterans Program (Apple Wallet pass: military discount + one free pint per month)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "setup": "node setup.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "apn": "^2.2.0",
+    "archiver": "^6.0.1",
+    "better-sqlite3": "^9.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.18.3",
+    "jimp": "^0.22.12",
+    "node-forge": "^1.3.1",
+    "qrcode": "^1.5.3",
+    "uuid": "^9.0.1"
+  }
+}

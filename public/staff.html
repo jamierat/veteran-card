@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bullfrog Salutes - Staff</title>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #14160f; color: #f5f5eb; min-height: 100vh; }
+    .top { background: #2d3521; border-bottom: 2px solid #d6c08c; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; }
+    .top h1 { font-size: 16px; font-weight: 800; letter-spacing: .5px; }
+    .top .who { font-size: 12px; color: #d6c08c; }
+    .wrap { max-width: 480px; margin: 0 auto; padding: 18px; }
+
+    /* Gate */
+    #gate { text-align: center; padding-top: 40px; }
+    #gate h2 { font-size: 20px; margin-bottom: 18px; }
+    .gate-input { width: 100%; padding: 15px; font-size: 18px; text-align: center; letter-spacing: 3px; background: #1c1f15; border: 2px solid #3a4128; border-radius: 12px; color: #fff; outline: none; margin-bottom: 12px; }
+    .gate-input:focus { border-color: #d6c08c; }
+
+    .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+    .tab { flex: 1; padding: 12px; text-align: center; background: #1c1f15; border: 2px solid #3a4128; border-radius: 12px; font-weight: 700; font-size: 14px; cursor: pointer; color: #cdd2b6; }
+    .tab.active { background: #d6c08c; color: #1a1d0e; border-color: #d6c08c; }
+
+    #reader { width: 100%; border-radius: 14px; overflow: hidden; margin-bottom: 12px; }
+    .manual { display: flex; gap: 8px; margin-bottom: 12px; }
+    .manual input { flex: 1; padding: 14px; font-size: 18px; text-transform: uppercase; letter-spacing: 3px; text-align: center; background: #1c1f15; border: 2px solid #3a4128; border-radius: 12px; color: #fff; outline: none; }
+    .manual button { padding: 0 18px; background: #d6c08c; color: #1a1d0e; border: none; border-radius: 12px; font-weight: 800; font-size: 15px; cursor: pointer; }
+
+    .btn { width: 100%; padding: 16px; font-size: 17px; font-weight: 800; border: none; border-radius: 14px; cursor: pointer; letter-spacing: .5px; }
+    .btn-gold { background: #d6c08c; color: #1a1d0e; }
+    .btn-green { background: #2e7d32; color: #fff; }
+    .btn-ghost { background: transparent; color: #9aa085; border: 2px solid #3a4128; }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .btn + .btn { margin-top: 10px; }
+
+    /* Member card */
+    #member { display: none; }
+    .mcard { background: #1c1f15; border: 2px solid #3a4128; border-radius: 16px; padding: 20px; margin-bottom: 14px; }
+    .mname { font-size: 24px; font-weight: 800; }
+    .mmeta { color: #9aa085; font-size: 14px; margin-top: 2px; }
+    .vstatus { display: inline-block; margin-top: 12px; padding: 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 800; letter-spacing: .5px; }
+    .v-yes { background: rgba(46,125,50,.2); color: #7bd181; border: 1px solid #2e7d32; }
+    .v-no  { background: rgba(214,160,60,.18); color: #e0b94a; border: 1px solid #b8902f; }
+    .row { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-top: 1px solid #2a3019; }
+    .row .k { color: #8b9072; font-size: 13px; letter-spacing: 1px; text-transform: uppercase; }
+    .row .v { font-weight: 800; font-size: 16px; text-align: right; }
+    .pint-ready .v { color: #7bd181; }
+    .pint-used .v  { color: #e0846f; }
+
+    .banner { padding: 16px; border-radius: 14px; font-weight: 800; text-align: center; margin-bottom: 14px; font-size: 17px; }
+    .banner-green { background: #2e7d32; color: #fff; }
+    .banner-red { background: #5a2d2d; color: #ffd9d2; border: 1px solid #8a4a4a; }
+    .banner-gold { background: rgba(214,192,140,.15); color: #f0e6c8; border: 1px solid #d6c08c; }
+    #toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #2d3521; border: 1px solid #d6c08c; color: #fff; padding: 14px 20px; border-radius: 12px; font-size: 15px; max-width: 90%; text-align: center; display: none; z-index: 50; }
+    .hidden { display: none !important; }
+    .err { color: #ff8a7a; font-size: 14px; text-align: center; margin: 8px 0; }
+  </style>
+</head>
+<body>
+
+<div class="top">
+  <h1>Bullfrog Salutes</h1>
+  <span class="who" id="who"></span>
+</div>
+
+<div class="wrap">
+
+  <!-- Staff gate -->
+  <div id="gate">
+    <h2>Staff sign-in</h2>
+    <input class="gate-input" id="staffCode" type="password" placeholder="Staff code" autocomplete="off">
+    <input class="gate-input" id="staffName" type="text" placeholder="Your name (optional)" autocomplete="off">
+    <button class="btn btn-gold" onclick="signIn()">Start Shift →</button>
+    <div class="err" id="gate-err" style="display:none">Wrong code. Try again.</div>
+  </div>
+
+  <!-- Scanner / lookup -->
+  <div id="scan" class="hidden">
+    <div class="tabs">
+      <div class="tab active" id="tab-scan" onclick="showScan()">Scan QR</div>
+      <div class="tab" id="tab-manual" onclick="showManual()">ID Code</div>
+    </div>
+
+    <div id="scan-pane">
+      <div id="reader"></div>
+      <button class="btn btn-ghost" id="cam-btn" onclick="toggleCamera()">Start Camera</button>
+    </div>
+
+    <div id="manual-pane" class="hidden">
+      <div class="manual">
+        <input id="codeInput" maxlength="6" placeholder="ABC123" autocomplete="off">
+        <button onclick="lookupByCode()">Look up</button>
+      </div>
+    </div>
+    <div class="err" id="lookup-err" style="display:none"></div>
+  </div>
+
+  <!-- Member result -->
+  <div id="member">
+    <div id="banner-slot"></div>
+    <div class="mcard">
+      <div class="mname" id="m-name"></div>
+      <div class="mmeta" id="m-meta"></div>
+      <div id="m-vstatus"></div>
+
+      <div class="row"><span class="k">Military Discount</span><span class="v" id="m-discount"></span></div>
+      <div class="row" id="m-pint-row"><span class="k">Free Pint This Month</span><span class="v" id="m-pint"></span></div>
+    </div>
+
+    <button class="btn btn-gold hidden" id="verify-btn" onclick="verify()">✓ Verify Veteran (checked proof of service)</button>
+    <button class="btn btn-green hidden" id="pint-btn" onclick="redeemPint()">Redeem Free Pint</button>
+    <button class="btn btn-ghost" onclick="reset()">← Next Customer</button>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+  let STAFF_CODE = '', STAFF_NAME = '', current = null, scanner = null, scanning = false;
+
+  // Pre-load passId from QR deep-link (?passId=...)
+  const urlPass = new URLSearchParams(location.search).get('passId');
+
+  function signIn() {
+    STAFF_CODE = document.getElementById('staffCode').value.trim();
+    STAFF_NAME = document.getElementById('staffName').value.trim();
+    if (!STAFF_CODE) return;
+    document.getElementById('gate').classList.add('hidden');
+    document.getElementById('scan').classList.remove('hidden');
+    if (STAFF_NAME) document.getElementById('who').textContent = STAFF_NAME;
+    if (urlPass) lookupById(urlPass);
+  }
+
+  function showScan() {
+    document.getElementById('tab-scan').classList.add('active');
+    document.getElementById('tab-manual').classList.remove('active');
+    document.getElementById('scan-pane').classList.remove('hidden');
+    document.getElementById('manual-pane').classList.add('hidden');
+  }
+  function showManual() {
+    document.getElementById('tab-manual').classList.add('active');
+    document.getElementById('tab-scan').classList.remove('active');
+    document.getElementById('manual-pane').classList.remove('hidden');
+    document.getElementById('scan-pane').classList.add('hidden');
+    stopCamera();
+  }
+
+  async function toggleCamera() {
+    if (scanning) { stopCamera(); return; }
+    scanner = new Html5Qrcode('reader');
+    try {
+      await scanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: 240 }, onScan);
+      scanning = true;
+      document.getElementById('cam-btn').textContent = 'Stop Camera';
+    } catch (e) { showToast('Camera blocked. Use the ID Code tab.'); }
+  }
+  async function stopCamera() {
+    if (scanner && scanning) { try { await scanner.stop(); } catch (_) {} }
+    scanning = false;
+    const b = document.getElementById('cam-btn'); if (b) b.textContent = 'Start Camera';
+  }
+  function onScan(text) {
+    stopCamera();
+    // QR contains <base>/scan/<passId>; pull the last path segment
+    let passId = text;
+    try { passId = new URL(text).pathname.split('/').pop(); } catch (_) {}
+    lookupById(passId);
+  }
+
+  async function lookupById(passId) {
+    const r = await fetch('/api/lookup?id=' + encodeURIComponent(passId));
+    handleLookup(r);
+  }
+  async function lookupByCode() {
+    const code = document.getElementById('codeInput').value.trim().toUpperCase();
+    if (code.length < 4) return;
+    const r = await fetch('/api/lookup?code=' + encodeURIComponent(code));
+    handleLookup(r);
+  }
+  async function handleLookup(r) {
+    const errEl = document.getElementById('lookup-err');
+    errEl.style.display = 'none';
+    if (!r.ok) { errEl.textContent = 'Member not found. Did they sign up?'; errEl.style.display = 'block'; return; }
+    current = await r.json();
+    renderMember();
+  }
+
+  function renderMember() {
+    const m = current;
+    document.getElementById('scan').classList.add('hidden');
+    document.getElementById('member').style.display = 'block';
+
+    document.getElementById('m-name').textContent = m.name;
+    document.getElementById('m-meta').textContent = [m.statusType, m.branch].filter(Boolean).join(' • ') || '-';
+    document.getElementById('m-discount').textContent = m.verified ? m.discount : 'Locked until verified';
+
+    const vEl = document.getElementById('m-vstatus');
+    vEl.innerHTML = m.verified
+      ? '<span class="vstatus v-yes">★ VERIFIED VETERAN</span>'
+      : '<span class="vstatus v-no">NOT VERIFIED</span>';
+
+    const pintEl = document.getElementById('m-pint');
+    const pintRow = document.getElementById('m-pint-row');
+    pintRow.className = 'row';
+    if (!m.verified) { pintEl.textContent = '-'; }
+    else if (m.pintAvailable) { pintEl.textContent = 'Available'; pintRow.classList.add('pint-ready'); }
+    else { pintEl.textContent = 'Used (back ' + m.nextPint + ')'; pintRow.classList.add('pint-used'); }
+
+    // Banner + action buttons
+    const banner = document.getElementById('banner-slot');
+    const verifyBtn = document.getElementById('verify-btn');
+    const pintBtn = document.getElementById('pint-btn');
+    verifyBtn.classList.add('hidden'); pintBtn.classList.add('hidden');
+
+    if (!m.verified) {
+      banner.innerHTML = '<div class="banner banner-gold">Check proof of service (military ID, VA card, or DD-214), then verify.</div>';
+      verifyBtn.classList.remove('hidden');
+    } else if (m.pintAvailable) {
+      banner.innerHTML = '<div class="banner banner-green">✓ Apply ' + m.discount + ' discount. Free pint available this month.</div>';
+      pintBtn.classList.remove('hidden');
+    } else {
+      banner.innerHTML = '<div class="banner banner-red">✓ Apply ' + m.discount + ' discount. Free pint already used. Back ' + m.nextPint + '.</div>';
+    }
+  }
+
+  async function verify() {
+    const btn = document.getElementById('verify-btn'); btn.disabled = true;
+    const r = await fetch('/api/verify', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ passId: current.passId, staffCode: STAFF_CODE, staffName: STAFF_NAME }),
+    });
+    const data = await r.json(); btn.disabled = false;
+    if (data.error) { showToast(data.error); return; }
+    current = data.member; renderMember(); showToast(data.message);
+  }
+
+  async function redeemPint() {
+    const btn = document.getElementById('pint-btn'); btn.disabled = true;
+    const r = await fetch('/api/redeem-pint', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ passId: current.passId, staffCode: STAFF_CODE, staffName: STAFF_NAME }),
+    });
+    const data = await r.json(); btn.disabled = false;
+    if (data.error) { showToast(data.error); if (data.member) { current = data.member; renderMember(); } else { current.pintAvailable = false; renderMember(); } return; }
+    current = data.member; renderMember(); showToast(data.message);
+  }
+
+  function reset() {
+    current = null;
+    document.getElementById('member').style.display = 'none';
+    document.getElementById('scan').classList.remove('hidden');
+    document.getElementById('codeInput').value = '';
+    if (history.replaceState) history.replaceState(null, '', location.pathname);
+    showScan();
+  }
+
+  let toastTimer;
+  function showToast(msg) {
+    const t = document.getElementById('toast'); t.textContent = msg; t.style.display = 'block';
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.style.display = 'none', 4000);
+  }
+
+  document.getElementById('staffCode').addEventListener('keydown', e => { if (e.key === 'Enter') signIn(); });
+  document.getElementById('codeInput').addEventListener('keydown', e => { if (e.key === 'Enter') lookupByCode(); });
+</script>
+</body>
+</html>
