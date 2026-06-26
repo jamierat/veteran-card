@@ -46,7 +46,7 @@ function currentMonthName(date = new Date()) {
 // ── Branch birthdays (free beer that day) ──────────────────────────────────
 // Keyed by 'MM-DD'. Aliases cover the exact strings the signup form can store.
 const BRANCH_BIRTHDAYS = {
-  'Army': '10-14',
+  'Army': '06-14',
   'Navy': '10-13',
   'Marine Corps': '11-10',
   'Marines': '11-10',
