@@ -243,26 +243,32 @@ app.post('/api/redeem-pint', (req, res) => {
   }
 
   const nowIso = new Date().toISOString();
-  // The unique index on (pass_id, redeemed_month) is the real guard against
-  // a double-redeem race; the check above is the friendly message.
-  try {
+  // Record the redemption and bump the member atomically. The unique index on
+  // (pass_id, redeemed_month) is the real guard against a double-redeem race.
+  const redeem = db.transaction(() => {
     db.prepare(`INSERT INTO pint_redemptions (pass_id, redeemed_month, redeemed_at, bartender) VALUES (?, ?, ?, ?)`)
       .run(member.pass_id, month, nowIso, staffName || 'staff');
+    db.prepare(`
+      UPDATE members
+      SET last_pint_month = ?, last_pint_at = ?,
+          total_pints = COALESCE(total_pints, 0) + 1,
+          total_visits = COALESCE(total_visits, 0) + 1,
+          pass_updated_at = ?
+      WHERE pass_id = ?
+    `).run(month, nowIso, nowIso, member.pass_id);
+  });
+  try {
+    redeem();
   } catch (e) {
-    return res.status(409).json({
-      error: `${member.name} already used their free pint this month. Next one unlocks ${nextPintLabel()}.`,
-      nextPint: nextPintLabel(),
-    });
+    if (String(e.code).includes('CONSTRAINT') || /UNIQUE/i.test(e.message)) {
+      return res.status(409).json({
+        error: `${member.name} already used their free pint this month. Next one unlocks ${nextPintLabel()}.`,
+        nextPint: nextPintLabel(),
+      });
+    }
+    console.error('redeem-pint error:', e.message);
+    return res.status(500).json({ error: 'Could not redeem right now. Try again.' });
   }
-
-  db.prepare(`
-    UPDATE members
-    SET last_pint_month = ?, last_pint_at = ?,
-        total_pints = COALESCE(total_pints, 0) + 1,
-        total_visits = COALESCE(total_visits, 0) + 1,
-        pass_updated_at = ?
-    WHERE pass_id = ?
-  `).run(month, nowIso, nowIso, member.pass_id);
 
   pushPassUpdate(member.pass_id).catch(e => console.warn('Push error:', e.message));
   const updated = db.prepare('SELECT * FROM members WHERE pass_id = ?').get(member.pass_id);
@@ -296,15 +302,22 @@ app.post('/api/redeem-birthday', (req, res) => {
   }
 
   const nowIso = new Date().toISOString();
-  try {
+  // Atomic: record the birthday beer and bump the visit count together.
+  const redeem = db.transaction(() => {
     db.prepare(`INSERT INTO birthday_redemptions (pass_id, occasion_date, occasion_label, redeemed_at, bartender) VALUES (?, ?, ?, ?, ?)`)
       .run(member.pass_id, occ.date, occ.label, nowIso, staffName || 'staff');
+    db.prepare(`UPDATE members SET total_visits = COALESCE(total_visits,0) + 1, pass_updated_at = ? WHERE pass_id = ?`)
+      .run(nowIso, member.pass_id);
+  });
+  try {
+    redeem();
   } catch (e) {
-    return res.status(409).json({ error: `${member.name} already claimed their ${occ.label} beer today.` });
+    if (String(e.code).includes('CONSTRAINT') || /UNIQUE/i.test(e.message)) {
+      return res.status(409).json({ error: `${member.name} already claimed their ${occ.label} beer today.` });
+    }
+    console.error('redeem-birthday error:', e.message);
+    return res.status(500).json({ error: 'Could not redeem right now. Try again.' });
   }
-
-  db.prepare(`UPDATE members SET total_visits = COALESCE(total_visits,0) + 1, pass_updated_at = ? WHERE pass_id = ?`)
-    .run(nowIso, member.pass_id);
 
   pushPassUpdate(member.pass_id).catch(e => console.warn('Push error:', e.message));
   const updated = db.prepare('SELECT * FROM members WHERE pass_id = ?').get(member.pass_id);
@@ -347,14 +360,10 @@ app.get('/api/admin/export/emails', (req, res) => {
   res.send(csv);
 });
 
-app.delete('/api/admin/reset-all', (req, res) => {
-  if (req.query.staffCode !== STAFF_CODE) return res.status(401).json({ error: 'Unauthorized.' });
-  const n = db.prepare('SELECT COUNT(*) as n FROM members').get().n;
-  db.prepare('DELETE FROM device_registrations').run();
-  db.prepare('DELETE FROM pint_redemptions').run();
-  db.prepare('DELETE FROM members').run();
-  res.json({ ok: true, deleted: n, message: `Wiped ${n} members and all data.` });
-});
+// NOTE: The data-wipe endpoint was intentionally removed. Wiping all members is
+// destructive and must never be reachable over the web (not even with the staff
+// PIN). To clear data, run `node wipe.js` inside the server (Railway console) —
+// this is done from Cowork by the owner only.
 
 app.get('/api/qr', async (req, res) => {
   const { data } = req.query;
