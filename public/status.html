@@ -32,6 +32,9 @@
     .code { margin-top: 8px; font-size: 28px; font-weight: 900; color: #d6c08c; letter-spacing: 6px; }
     .note { color: #9aa085; font-size: 13px; margin-top: 18px; line-height: 1.5; }
     .foot { color: #5c624c; font-size: 11px; text-align: center; padding: 14px; }
+    .qrbox { background: #fff; border-radius: 16px; padding: 14px; width: 236px; margin: 18px auto 6px; }
+    .qrbox img { width: 100%; display: block; }
+    .qrhint { text-align: center; font-size: 12px; color: #9aa085; margin-bottom: 6px; }
   </style>
 </head>
 <body>
@@ -44,6 +47,9 @@
     <div id="vstatus"></div>
     <div class="code" id="code">------</div>
   </div>
+
+  <div class="qrbox"><img id="qr" alt="Show this at the bar"></div>
+  <div class="qrhint">Show this to your bartender to scan</div>
 
   <div class="perks">
     <div class="perk"><span class="k">Military Discount</span><span class="v" id="discount">-</span></div>
@@ -62,6 +68,9 @@
     document.getElementById('name').textContent = m.name;
     document.getElementById('meta').textContent = [m.statusType, m.branch].filter(Boolean).join(' • ');
     document.getElementById('code').textContent = m.shortCode;
+    fetch('/api/qr?data=' + encodeURIComponent(location.origin + '/scan/' + m.passId))
+      .then(r => r.json()).then(q => { if (q.qr) document.getElementById('qr').src = q.qr; })
+      .catch(() => {});
     document.getElementById('vstatus').innerHTML = m.verified
       ? '<span class="vstatus v-yes">★ VERIFIED VETERAN</span>'
       : '<span class="vstatus v-no">Not verified yet</span>';

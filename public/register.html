@@ -57,6 +57,8 @@
       text-decoration: none; text-align: center; margin-bottom: 12px;
     }
     .wallet-btn:hover { border-color: #777; }
+    .card-btn { display: block; width: 100%; padding: 18px; background: #d6c08c; color: #1a1d0e; border-radius: 14px; font-size: 16px; font-weight: 800; text-align: center; text-decoration: none; margin-bottom: 12px; }
+    .hide { display: none !important; }
     .code-box { background: #1c1f15; border: 2px solid #3a4128; border-radius: 12px; padding: 16px; margin: 16px 0; text-align: center; }
     .code-box .label { font-size: 11px; letter-spacing: 2px; color: #8b9072; text-transform: uppercase; margin-bottom: 6px; }
     .code-box .code { font-size: 32px; font-weight: 900; color: #d6c08c; letter-spacing: 6px; }
@@ -128,9 +130,10 @@
 <div id="success">
   <div class="big">✓</div>
   <h2>Welcome aboard, <span id="customer-name"></span>!</h2>
-  <p>Add your card to Wallet, then show your military ID, VA card, or DD-214 to your bartender on your next visit to get verified.</p>
+  <p id="success-sub">Add your card to Wallet, then show your military ID, VA card, or DD-214 to your bartender on your next visit to get verified.</p>
 
   <a id="wallet-btn" href="#" class="wallet-btn"><svg viewBox="0 0 384 512" width="17" height="17" fill="#fff" style="vertical-align:-2px;margin-right:8px"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C53.3 141.2 1 184.8 1 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-58.7-91.9zM228.7 39.5c19.7-23.4 17.9-44.7 17.3-52.5-17.4 1-37.5 11.9-49 25.3-12.6 14.4-20 32.2-18.4 51.1 18.8 1.5 36-8.2 50.1-23.9z"/></svg>Add to Wallet</a>
+  <a id="card-btn" href="#" class="card-btn">Open My Card</a>
 
   <div class="code-box">
     <div class="label">Your ID Code</div>
@@ -168,7 +171,16 @@
       document.getElementById('customer-name').textContent = data.name.split(' ')[0];
       document.getElementById('customer-code').textContent = data.shortCode;
       document.getElementById('wallet-btn').href = data.downloadUrl;
+      document.getElementById('card-btn').href = data.statusUrl;
       document.getElementById('check-link').href = data.statusUrl;
+      // Apple Wallet .pkpass only works on iPhone/iPad. Everywhere else (Android),
+      // hide the wallet button and steer people to their universal card page.
+      var isIOS = /iP(hone|ad|od)/.test(navigator.userAgent);
+      if (!isIOS) {
+        document.getElementById('wallet-btn').classList.add('hide');
+        var sub = document.getElementById('success-sub');
+        if (sub) sub.textContent = 'Tap Open My Card below, then add it to your home screen. Show your military ID, VA card, or DD-214 at the bar on your next visit to get verified.';
+      }
       window.scrollTo(0, 0);
     } catch (e) { showError('Something went wrong. Please try again.'); }
   }

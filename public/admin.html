@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bullfrog Salutes - Admin Lookup</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #14160f; color: #f5f5eb; min-height: 100vh; }
+    .top { background: #2d3521; border-bottom: 2px solid #d6c08c; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; }
+    .top h1 { font-size: 16px; font-weight: 800; letter-spacing: .5px; }
+    .top .who { font-size: 12px; color: #d6c08c; }
+    .signout { font-size: 12px; color: #9aa085; cursor: pointer; text-decoration: underline; }
+    .signout.hidden { display: none; }
+    .wrap { max-width: 560px; margin: 0 auto; padding: 18px; }
+
+    #gate { text-align: center; padding-top: 40px; }
+    #gate h2 { font-size: 20px; margin-bottom: 18px; }
+    .gate-input { width: 100%; padding: 15px; font-size: 18px; text-align: center; letter-spacing: 3px; background: #1c1f15; border: 2px solid #3a4128; border-radius: 12px; color: #fff; outline: none; margin-bottom: 12px; text-transform: uppercase; }
+    .gate-input:focus { border-color: #d6c08c; }
+    .btn { width: 100%; padding: 16px; font-size: 17px; font-weight: 800; border: none; border-radius: 14px; cursor: pointer; background: #d6c08c; color: #1a1d0e; }
+
+    .search { width: 100%; padding: 15px 16px; font-size: 17px; background: #1c1f15; border: 2px solid #3a4128; border-radius: 12px; color: #fff; outline: none; margin-bottom: 6px; }
+    .search:focus { border-color: #d6c08c; }
+    .count { font-size: 12px; color: #8b9072; margin: 4px 2px 12px; }
+
+    .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: #1c1f15; border: 1px solid #3a4128; border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; cursor: pointer; }
+    .row:active { border-color: #d6c08c; }
+    .r-name { font-weight: 800; font-size: 17px; }
+    .r-meta { color: #9aa085; font-size: 13px; margin-top: 2px; }
+    .r-right { text-align: right; flex-shrink: 0; }
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: .5px; }
+    .b-yes { background: rgba(46,125,50,.2); color: #7bd181; border: 1px solid #2e7d32; }
+    .b-no  { background: rgba(214,160,60,.18); color: #e0b94a; border: 1px solid #b8902f; }
+    .chev { color: #6b7256; font-size: 20px; margin-left: 8px; }
+    .empty { text-align: center; color: #8b9072; padding: 30px 10px; font-size: 14px; }
+    .hidden { display: none !important; }
+    .err { color: #ff8a7a; font-size: 14px; text-align: center; margin: 10px 0; }
+    .hint { color: #8b9072; font-size: 13px; text-align: center; margin-top: 10px; }
+  </style>
+</head>
+<body>
+
+<div class="top">
+  <h1>Bullfrog Salutes - Admin</h1>
+  <span><span class="who" id="who"></span> <a id="signout" class="signout hidden" onclick="signOut()">Sign out</a></span>
+</div>
+
+<div class="wrap">
+  <div id="gate">
+    <h2>Owner / staff sign-in</h2>
+    <input class="gate-input" id="code" type="text" placeholder="STAFF CODE" autocomplete="off" oninput="this.value = this.value.toUpperCase()">
+    <button class="btn" onclick="signIn()">Open Lookup →</button>
+    <div class="err" id="gate-err" style="display:none">Wrong code. Try again.</div>
+  </div>
+
+  <div id="panel" class="hidden">
+    <input class="search" id="search" placeholder="Search by name, ID code, email, or branch" oninput="render()" autocomplete="off">
+    <div class="count" id="count"></div>
+    <div id="list"></div>
+    <div class="hint">Tap a member to open their card, then verify or redeem. When you can't scan a QR, look them up here.</div>
+  </div>
+</div>
+
+<script>
+  let CODE = '', members = [];
+
+  async function signIn() {
+    CODE = document.getElementById('code').value.trim().toUpperCase();
+    if (!CODE) return;
+    const r = await fetch('/api/admin/members?staffCode=' + encodeURIComponent(CODE));
+    if (!r.ok) { document.getElementById('gate-err').style.display = 'block'; return; }
+    members = await r.json();
+    try { localStorage.setItem('bcb_staff_code', CODE); } catch (e) {}
+    document.getElementById('gate').classList.add('hidden');
+    document.getElementById('panel').classList.remove('hidden');
+    document.getElementById('signout').classList.remove('hidden');
+    render();
+    document.getElementById('search').focus();
+  }
+
+  function signOut() {
+    try { localStorage.removeItem('bcb_staff_code'); } catch (e) {}
+    location.href = location.pathname;
+  }
+
+  function render() {
+    const q = document.getElementById('search').value.trim().toLowerCase();
+    const rows = members.filter(m => {
+      if (!q) return true;
+      return [m.name, m.short_code, m.email, m.branch, m.status_type]
+        .filter(Boolean).some(v => String(v).toLowerCase().includes(q));
+    }).sort((a, b) => String(a.name).localeCompare(String(b.name)));
+
+    document.getElementById('count').textContent =
+      rows.length + ' of ' + members.length + ' member' + (members.length === 1 ? '' : 's');
+
+    const list = document.getElementById('list');
+    if (rows.length === 0) {
+      list.innerHTML = '<div class="empty">No match. Try part of their name, code, or email.</div>';
+      return;
+    }
+    list.innerHTML = rows.map(m => {
+      const meta = [m.status_type, m.branch].filter(Boolean).join(' • ') || 'No branch';
+      const badge = m.verified
+        ? '<span class="badge b-yes">VERIFIED</span>'
+        : '<span class="badge b-no">PENDING</span>';
+      return '<div class="row" onclick="open_(\'' + m.pass_id + '\')">' +
+               '<div><div class="r-name">' + esc(m.name) + '</div>' +
+               '<div class="r-meta">' + esc(meta) + ' · ' + esc(m.short_code) + '</div></div>' +
+               '<div class="r-right">' + badge + '<span class="chev">›</span></div>' +
+             '</div>';
+    }).join('');
+  }
+
+  function open_(passId) {
+    // Hand off to the staff card view (auto-signs in via the saved code).
+    location.href = '/staff.html?passId=' + encodeURIComponent(passId);
+  }
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  document.getElementById('code').addEventListener('keydown', e => { if (e.key === 'Enter') signIn(); });
+
+  // Auto sign-in if already signed in on this device
+  (function () {
+    try {
+      const saved = localStorage.getItem('bcb_staff_code');
+      if (saved) { document.getElementById('code').value = saved; signIn(); }
+    } catch (e) {}
+  })();
+</script>
+</body>
+</html>
